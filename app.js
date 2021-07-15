@@ -84,6 +84,34 @@ const ItemCtrl = (function () {
 
       return data.totalCalories;
     },
+    updatedItem: function (name, calories) {
+      calories = parseInt(calories);
+
+      let found;
+      data.items.forEach(function (item) {
+        if (item.id === data.currentItem.id) {
+          item.name = name;
+          item.calories = calories;
+          found = item;
+        }
+      });
+
+      return found;
+    },
+    deleteItem: function (id) {
+      //Get ids
+      const ids = data.items.map(function (item) {
+        return item.id;
+      });
+
+      const index = ids.indexOf(id);
+
+      // Remove Item
+      data.items.splice(index, 1);
+    },
+    clearAllItems: function () {
+      data.items = [];
+    },
   };
 })();
 
@@ -92,10 +120,12 @@ const ItemCtrl = (function () {
 const UICtrl = (function () {
   const UISelectors = {
     itemList: `#item-list`,
+    listItems: `#item-list li`,
     addBtn: `.add-btn`,
     updateBtn: `.update-btn`,
     deleteBtn: `.delete-btn`,
     backBtn: `.back-btn`,
+    clearBtn: `.clear-btn`,
     itemNameInput: `#item-name`,
     itemCaloriesInput: `#item-calories`,
     totalCalories: `.total-calories`,
@@ -155,12 +185,21 @@ const UICtrl = (function () {
     hideList: function () {
       document.querySelector(UISelectors.itemList).style.display = "none";
     },
+    removeItems: function () {
+      let listItems = document.querySelectorAll(UISelectors.listItems);
+      //turn node list into array
+      listItems = Array.from(listItems);
+
+      listItems.forEach(function (listItem) {
+        listItem.remove();
+      });
+    },
     showTotalCalories: function (totalCalories) {
       document.querySelector(UISelectors.totalCalories).textContent =
         totalCalories;
     },
     clearEditState: function () {
-      this.clearInput();
+      UICtrl.clearInput();
       document.querySelector(UISelectors.updateBtn).style.display = "none";
       document.querySelector(UISelectors.deleteBtn).style.display = "none";
       document.querySelector(UISelectors.backBtn).style.display = "none";
@@ -171,6 +210,28 @@ const UICtrl = (function () {
       document.querySelector(UISelectors.deleteBtn).style.display = "inline";
       document.querySelector(UISelectors.backBtn).style.display = "inline";
       document.querySelector(UISelectors.addBtn).style.display = "none";
+    },
+    updateItem: function (item) {
+      let listItems = document.querySelectorAll(UISelectors.listItems);
+
+      //turn node list into array
+      listItems = Array.from(listItems);
+
+      listItems.forEach(function (listItem) {
+        const itemID = listItem.getAttribute(`id`);
+
+        if (itemID === `item-${item.id}`) {
+          document.querySelector(
+            `#${itemID}`
+          ).innerHTML = `<strong>${item.name}:</strong> <span> ${item.calories} Calories</span>
+            <a href="#" class="secondary-content"><i class="edit-item fa fa-pencil"></i></a>`;
+        }
+      });
+    },
+    deleteListItem: function (id) {
+      const itemID = `#item-${id}`;
+      const item = document.querySelector(itemID);
+      item.remove();
     },
   };
 })();
@@ -188,10 +249,38 @@ const App = (function (ItemCtrl, UICtrl) {
       .querySelector(UISelectors.addBtn)
       .addEventListener("click", itemAddSubmit);
 
+    // Disable submit on Enter
+    document.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        return false;
+      }
+    });
+
     // Edit icon click
     document
       .querySelector(UISelectors.itemList)
+      .addEventListener("click", itemEditClick);
+
+    //Update Item event
+    document
+      .querySelector(UISelectors.updateBtn)
       .addEventListener("click", itemUpdateSubmit);
+
+    //Back Event
+    document
+      .querySelector(UISelectors.backBtn)
+      .addEventListener("click", UICtrl.clearEditState);
+
+    //Delete Item Event
+    document
+      .querySelector(UISelectors.deleteBtn)
+      .addEventListener("click", itemDeleteSubmit);
+
+    //clear items event
+    document
+      .querySelector(UISelectors.clearBtn)
+      .addEventListener("click", clearAllItemsClick);
   };
 
   // Add item submit
@@ -219,8 +308,8 @@ const App = (function (ItemCtrl, UICtrl) {
     e.preventDefault();
   };
 
-  //Update Item submit
-  const itemUpdateSubmit = function (e) {
+  //Item Edit Click
+  const itemEditClick = function (e) {
     if (e.target.classList.contains("edit-item")) {
       // Get list item id (item-0, item-1 etc)
       const listId = e.target.parentNode.parentNode.id;
@@ -243,6 +332,69 @@ const App = (function (ItemCtrl, UICtrl) {
       //show Edit State
       UICtrl.showEditState();
     }
+    e.preventDefault();
+  };
+
+  const itemUpdateSubmit = function (e) {
+    //Get form input values after update
+    const input = UICtrl.getItemInput();
+
+    const updatedItem = ItemCtrl.updatedItem(input.name, input.calories);
+
+    //Update UI
+    UICtrl.updateItem(updatedItem);
+
+    //Get total calories
+    const totalCalories = ItemCtrl.getTotalCalories();
+
+    //Add total Calories to UI
+    UICtrl.showTotalCalories(totalCalories);
+
+    //Clear Edit State
+    UICtrl.clearEditState();
+
+    e.preventDefault();
+  };
+
+  //Delete button event
+  const itemDeleteSubmit = function (e) {
+    //Get current Item
+    const currentItem = ItemCtrl.getCurrentItem();
+
+    //Delete From Data Structure
+    ItemCtrl.deleteItem(currentItem.id);
+
+    //Delete from UI
+    UICtrl.deleteListItem(currentItem.id);
+
+    //Get total calories
+    const totalCalories = ItemCtrl.getTotalCalories();
+
+    //Add total Calories to UI
+    UICtrl.showTotalCalories(totalCalories);
+
+    //Clear Edit State
+    UICtrl.clearEditState();
+
+    e.preventDefault();
+  };
+
+  const clearAllItemsClick = function (e) {
+    //Delete All Items from Data structure
+    ItemCtrl.clearAllItems();
+
+    //Get total calories
+    const totalCalories = ItemCtrl.getTotalCalories();
+
+    //Add total Calories to UI
+    UICtrl.showTotalCalories(totalCalories);
+
+    // remove from ui
+    UICtrl.removeItems();
+
+    //Hide Ul
+    UICtrl.hideList();
+
     e.preventDefault();
   };
 
